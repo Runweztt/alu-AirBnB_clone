@@ -1,86 +1,76 @@
 #!/usr/bin/python3
 """Unit tests for the BaseModel class."""
 
+import os
 import unittest
 from datetime import datetime
+from models import storage
 from models.base_model import BaseModel
 
 
 class TestBaseModel(unittest.TestCase):
-    """Tests the behavior of BaseModel."""
+    """Test the behavior of BaseModel."""
+
+    def tearDown(self):
+        """Reset storage after each test."""
+        storage.all().clear()
+
+        if os.path.exists("file.json"):
+            os.remove("file.json")
 
     def test_id_is_string(self):
-        """Test that id is stored as a string."""
-        model = BaseModel()
-        self.assertIsInstance(model.id, str)
+        """Test that id is a string."""
+        self.assertIsInstance(BaseModel().id, str)
 
-    def test_unique_ids(self):
-        """Test that separate instances receive unique ids."""
-        first = BaseModel()
-        second = BaseModel()
-        self.assertNotEqual(first.id, second.id)
+    def test_ids_are_unique(self):
+        """Test that instances receive unique ids."""
+        self.assertNotEqual(BaseModel().id, BaseModel().id)
 
-    def test_created_at_is_datetime(self):
-        """Test that created_at is a datetime instance."""
+    def test_dates_are_datetime_objects(self):
+        """Test that dates are datetime objects."""
         model = BaseModel()
         self.assertIsInstance(model.created_at, datetime)
-
-    def test_updated_at_is_datetime(self):
-        """Test that updated_at is a datetime instance."""
-        model = BaseModel()
         self.assertIsInstance(model.updated_at, datetime)
 
     def test_save_updates_updated_at(self):
-        """Test that save changes the updated_at value."""
+        """Test that save updates updated_at."""
         model = BaseModel()
-        old_updated_at = model.updated_at
+        old_time = model.updated_at
         model.save()
-        self.assertGreater(model.updated_at, old_updated_at)
+        self.assertGreater(model.updated_at, old_time)
 
     def test_string_representation(self):
-        """Test the required BaseModel string representation."""
+        """Test the required string representation."""
         model = BaseModel()
+
         expected = "[BaseModel] ({}) {}".format(
-            model.id, model.__dict__
+            model.id,
+            model.__dict__
         )
+
         self.assertEqual(str(model), expected)
 
-    def test_to_dict_returns_dictionary(self):
-        """Test that to_dict returns a dictionary."""
+    def test_to_dict(self):
+        """Test dictionary serialization."""
         model = BaseModel()
-        self.assertIsInstance(model.to_dict(), dict)
+        data = model.to_dict()
 
-    def test_to_dict_contains_class(self):
-        """Test that dictionary contains the class name."""
-        model = BaseModel()
-        self.assertEqual(model.to_dict()["__class__"], "BaseModel")
-
-    def test_to_dict_dates_are_strings(self):
-        """Test that serialized dates are strings."""
-        model = BaseModel()
-        model_dict = model.to_dict()
-        self.assertIsInstance(model_dict["created_at"], str)
-        self.assertIsInstance(model_dict["updated_at"], str)
+        self.assertEqual(data["__class__"], "BaseModel")
+        self.assertIsInstance(data["created_at"], str)
+        self.assertIsInstance(data["updated_at"], str)
 
     def test_create_from_dictionary(self):
-        """Test recreation of an instance from a dictionary."""
+        """Test recreation from a dictionary."""
         model = BaseModel()
         model.name = "Test Model"
-        model_dict = model.to_dict()
 
-        new_model = BaseModel(**model_dict)
+        copy = BaseModel(**model.to_dict())
 
-        self.assertEqual(model.id, new_model.id)
-        self.assertEqual(model.name, new_model.name)
-        self.assertIsInstance(new_model.created_at, datetime)
-        self.assertIsInstance(new_model.updated_at, datetime)
-        self.assertIsNot(model, new_model)
-
-    def test_class_not_added_from_kwargs(self):
-        """Test that __class__ is ignored during reconstruction."""
-        model = BaseModel()
-        new_model = BaseModel(**model.to_dict())
-        self.assertNotIn("__class__", new_model.__dict__)
+        self.assertEqual(model.id, copy.id)
+        self.assertEqual(copy.name, "Test Model")
+        self.assertIsInstance(copy.created_at, datetime)
+        self.assertIsNot(model, copy)
+        self.assertNotIn("__class__", copy.__dict__)
 
 
 if __name__ == "__main__":
